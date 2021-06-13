@@ -1,0 +1,180 @@
+#HW5 Základy programování v Pythonum, práce se stromy a pamětí
+
+from typing import List, Tuple, Optional
+
+
+class Person:
+    def __init__(self, name, born_year, eye_color, parent, children):
+        self.name = name
+        self.born_year = born_year
+        self.eye_color = eye_color
+        self.parent = parent
+        self.children = children
+
+    def iterate_through(self, count=0):
+        result = [(self, count)]
+        # print(self.name, count, end=' ') print test
+        count += 1
+        for child in sorted(self.children):
+            result.extend(eval(child).iterate_through(count))
+        return result
+
+    def search_root(self):
+        try:
+            return eval(self.parent).search_root()
+        except NameError:
+            return self
+
+    def validate_eye_color(self, color: str) -> bool:
+        all_people = self.iterate_through()
+        for pers in all_people:
+            if pers[0].eye_color != color:
+                return False
+        return True
+
+    def validate_min_mother_age(self, min_age: int) -> bool:
+        all_people = self.iterate_through()
+        for pers in all_people:
+            try:
+                if pers[0].born_year - min_age < eval(
+                        pers[0].parent).born_year:
+                    return False
+            except NameError:
+                continue
+        return True
+
+    def people_with_children(self, count: int) -> List['Person']:
+        all_people = self.iterate_through()
+        result = []
+        for pers in all_people:
+            if len(pers[0].children) == count:
+                result.append(pers[0])
+        return result
+
+    def youngest_mother(self) -> Optional['Person']:
+        all_people = self.iterate_through()
+        result = {}
+        for pers in all_people:
+            try:
+                age_born = pers[0].born_year - eval(pers[0].parent).born_year
+                if pers[0].parent not in result.keys():
+                    result[pers[0].parent] = age_born
+                elif result[pers[0].parent] > age_born:
+                    result[pers[0].parent] = age_born
+            except NameError:
+                continue
+        for keys, values in result.items():
+            if values == min(result.values()):
+                return eval(keys)
+
+    def people_with_color_eyed_aunts(self, color: str) -> List['Person']:
+        all_people = (self.search_root()).iterate_through()
+        result = []
+        for pers in all_people:
+            copy_all_people = [x for x in all_people if x != pers]
+            for perso in copy_all_people:
+                if perso[1] == pers[1] - 1 and perso[0].eye_color == color:
+                    if perso[0].name != pers[0].parent:
+                        result.append(perso[0])
+        return result
+
+    def change_eye_color(self, old: str, new: str) -> None:
+        all_people = self.iterate_through()
+        for pers in all_people:
+            if pers[0].eye_color == old:
+                pers[0].eye_color = new
+
+    def change_born_year(self, increment: int) -> None:
+        all_people = self.iterate_through()
+        for pers in all_people:
+            try:
+                siblings = [x for x in all_people if
+                            x[0].parent == pers[0].parent and x[0] != pers[0]]
+                if not siblings:
+                    continue
+                elif all(sibling[0].eye_color == siblings[0][0].eye_color for
+                         sibling in siblings):
+                    pers[0].born_year += increment
+            except NameError:
+                continue
+
+    def draw_family_tree(self) -> None:
+        all_people = self.iterate_through()
+        for pers in all_people:
+            print(pers[1] * '--' + pers[0].name + ' ({})'.format(
+                pers[0].born_year))
+
+    def cut_color_eyed(self, color: str) -> int:
+        all_people = self.iterate_through()
+        for pers in all_people:
+            if pers[0].eye_color == color:
+                try:
+                    eval(pers[0].parent).children.remove(pers[0].name)
+                    pers[0].parent = ""
+                except NameError:
+                    continue
+
+    def cut_subtree_years(self, start: int, end: int) -> bool:
+        pass
+
+    def __str__(self):
+        return "({}, {}, {}, {}, {})".format(self.name, self.born_year,
+                                             self.eye_color, self.parent,
+                                             self.children)
+
+
+def build_tree(persons: List[Tuple[str, int, str]],
+               relations: List[Tuple[str, str]]) -> Optional['Person']:
+    adepts_parents = {}
+    helper = []
+    for rel in relations:
+        parent, child = rel
+        if parent not in adepts_parents:
+            adepts_parents[parent] = child
+            helper.append(parent)
+        elif child in adepts_parents:
+            helper.remove(parent)
+    result = helper
+    for pers in persons:
+        if pers[0] in result:
+            return Person(pers[0], pers[1], pers[2], None,
+                          adepts_parents[pers[0]])
+
+
+# TEST DATA
+if True:
+    Bob = Person('Bob', 1900, 'Red', 'Jane', ['Kim', 'Oli', 'Bil'])
+    Kim = Person('Kim', 1900, 'Red', 'Bob', ['Alb'])
+    Alb = Person('Alb', 1900, 'Red', 'Kim', [])
+    Bil = Person('Bil', 1900, 'Red', 'Bob', [])
+    Oli = Person('Oli', 1900, 'Blue', 'Bob', ['Eva'])
+    Eva = Person('Eva', 1900, 'Blue', 'Oli', ['Jon'])
+    Jon = Person('Jon', 1900, 'Blue', 'Eva', ['Alt', 'Val'])
+    Val = Person('Val', 1900, 'Blue', 'Jon', [])
+    Alt = Person('Alt', 1900, 'Blue', 'Jon', [])
+    # Bob 0 = 0x0000018D1EB04B48
+    #     Kim 1 = 0x0000018D1EB04BC8
+    #         Alb 2 = 0x0000018D1EB04C08
+    #     Bil 1 = 0x0000018A78287348
+    #     Oli 1 = 0x0000018D1EB04C48
+    #         Eva 2 = 0x0000018D1EB04C88
+    #             Jon 3 = 0x0000018D1EB04CC8
+    #             Val 3 =
+    #                 Alt 4 = 0x0000018D1EB04D08
+    # print(Bob.validate_eye_color('Green'))
+    # print(Bob.validate_min_mother_age(10))
+    # print(build_tree([('Bob', 1959, 'Blue', 'Jane', ['Kim']),
+    # ('Kim', 1979, 'Blue', 'Bob', ['Oli']),
+    # ('Oli', 2000, 'Blue', 'Kim', ['Eva']),
+    # ('Eva', 2015, 'Blue', 'Oli', [])], [('Bob', 'Kim')]))
+    # print(Bob.people_with_children(0))
+    print(Kim.iterate_through())
+    # print(Bob.youngest_mother())
+    # print(Bob.people_with_color_eyed_aunts("Green"))
+    # print(Eva.search_root())
+    # print(Bob.change_eye_color('Blue', 'Red'))
+    # print(Bob.change_born_year(10))
+    # print(Bob, Kim, Alb, Bil, Oli, Eva, Jon, Val, Alt)
+    # Bob.draw_family_tree()
+    # Bob.cut_color_eyed('Blue')
+    # Bob.draw_family_tree()
